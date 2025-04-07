@@ -5,5 +5,10 @@
 # and then follow the instructions linked to in assignment document.
 # You should be able to produce a working installation by just
 # following the instructions.
-
-#FROM node:version...
+FROM node:18
+WORKDIR /app
+COPY package*.json ./
+RUN npm install
+COPY . .
+EXPOSE 3001
+CMD ["node", "index.js"]

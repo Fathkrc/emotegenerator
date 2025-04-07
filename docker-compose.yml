@@ -11,14 +11,35 @@ services:
   # A set of needed Docker instructions like 'image:' are shown
   # below, groups should set their values. Groups are free to
   # CRUD the set of instructions as they see fit.
-#  kafka:
-#    image:
-#    networks:
-#    ports:
-#    environment:
-
-  server_a:
+ kafka:
+   image: bitnami/kafka:latest
+   container_name: kafka
+   # If you use the Bitnami Kafka image that relies on KRaft-mode, you might also need to set environment variables.
+   ports:
+    - "9092:9092"
+   environment:
+    - KAFKA_CFG_PROCESS_ROLES=broker,controller
+    - KAFKA_CFG_NODE_ID=1
+    - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
+    - KAFKA_CFG_LISTENERS=CONTROLLER://0.0.0.0:19092,PLAINTEXT://0.0.0.0:9092
+    - KAFKA_CFG_ADVERTISED_LISTENERS=CONTROLLER://kafka:19092,PLAINTEXT://kafka:9092
+    - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=1@kafka:19092
+    - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+    - ALLOW_PLAINTEXT_LISTENER=yes
+   networks:
+    - backend
+ emotegen:
+    build: ./backend/emotegen   # Folder with the Dockerfile for emotegen
+    container_name: emotegen
+    depends_on:
+      - kafka
+    environment:
+      - KAFKA_BROKER=kafka:9092 
+    networks:
+      - backend
+ server_a:
     build: ./backend/server_a
+    container_name: server_a
     ports:
       - "3000:3000"
     depends_on:
@@ -27,21 +48,31 @@ services:
       - KAFKA_BROKER=kafka:9092
     networks:
       - backend
+ server_b:
+   build: ./backend/server_b
+   container_name: server_b
+   ports:
+    - "3001:3000"
+   depends_on:
+    - kafka
+   environment:
+    - KAFKA_BROKER=kafka:9092
+    - RAW_TOPIC=raw-emote-data
+    - AGG_TOPIC=aggregated-emote-data
+   networks:
+    - backend
 
   # much of the server_b service entry can be copied from server_a
   # service above. Groups are free to
   # CRUD this set of instructions as they see fit.
-  # server_b:
-      # build:
-      # depends_on:
-      # environment:
-      # networks:
+
 
 # Here we create a named network, that all the backend components
 # must be added to for them to be able to communicate through
 # exposed ports.
 networks:
   backend:
+    driver: bridge
 
 # If you use databases for storing information, you can define
 # their volumes here.

@@ -1,11 +1,9 @@
-# Server A
+Groups name:karaca
+fatih karaca
+fatih.karaca@tuni.fi
 
-This directory is for the code and documentation of the _server A_. A starter Dockerfile has been added, it has some comments to get you started.
 
-Server A acts as a consumer for at least the _aggregated-emote-data_ topic. You may want to consume also the _raw-emote-data_ topic. Consume the messages and publish those to each WebSocket client.
-
-To get started you should run `npm init` in this directory to initialize the Node project. This will create a `package.json`-file, which is used to define the project's attributes, dependencies etc. You should next create the index.js file.
-System Architecture
+# Project Documentation
 
 Component: server_a
 server_a acts as a bridge between Kafka and WebSocket clients. Its main responsibilities are:
@@ -36,3 +34,17 @@ WebSocket Configuration
 
 Listens on port 3000
 Maintains a list of active WebSocket clients and broadcasts messages from Kafka to all of them
+Component: server_b
+Server B implementation is responsible for consuming messages from the raw-emote-data topic, analyzing them, and producing 
+significant moments to the aggregated-emote-data topic. It also exposes a REST API to get and update the thresholds.:
+
+Consuming from the raw-emote-data topic.
+Batching messages until count hit messageCountThreshold.
+Analyzing those messages by slicing the timestamp to minute-level granularity (record.timestamp.slice(0, 16)).
+Producing “significant moments” to aggregated-emote-data.
+Exposing a REST API to get and update the threshold (messageCountThreshold and significantEmoteThreshold).
+
+I have tested the postman /get test and it is working.
+
+I need to debug the /post test and then I will dockerize it.
+I will start to frontend and dockerize them all .

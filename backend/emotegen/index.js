@@ -12,7 +12,7 @@ const emotes = ['❤️', '👍', '😢', '😡'];
 const topic = 'raw-emote-data';
 
 const createTopics = async () => {
-    await admin.connect();
+        await admin.connect();
     await admin.createTopics({
         topics: [
             { topic: 'raw-emote-data', numPartitions: 1, replicationFactor: 1 },
@@ -35,7 +35,7 @@ const sendMessage = async (message) => {
         messages: [{ value: JSON.stringify(message) }]
     });
 
-    //console.log('Message sent: ', message);
+    console.log('Message sent: ', message);
 }
 
 const generateEmotes = async () => {

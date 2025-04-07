@@ -35,7 +35,7 @@ const sendMessage = async (message) => {
         messages: [{ value: JSON.stringify(message) }]
     });
 
-    console.log('Message sent: ', message);
+    // console.log('Message sent: ', message);
 }
 
 const generateEmotes = async () => {

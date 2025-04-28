@@ -73,7 +73,15 @@ services:
     - AGG_TOPIC=aggregated-emote-data
    networks:
     - backend
-
+ frontend:    
+    build: ./frontend
+    container_name: frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - server_b
+    networks:
+      - backend
   # much of the server_b service entry can be copied from server_a
   # service above. Groups are free to
   # CRUD this set of instructions as they see fit.

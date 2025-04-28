@@ -24,7 +24,8 @@ let significantEmoteThreshold = 0.2;
 
 // We accumulate raw emote messages in this array before analyzing.
 let rawMessagesBatch = [];
-
+// This is a list of emotes that we want to allow for analysis. hardcoded for now
+let allowedEmotes = ['❤️', '👍', '😢', '😡'];
 // -----------------------------------------------------
 // 2) Set up Kafka (consumer + producer)
 // -----------------------------------------------------
@@ -90,7 +91,10 @@ async function handleIncomingMessage(message) {
     console.error('Invalid JSON in raw-emote-data:', valueStr);
     return;
   }
-
+  // Filter by allowed emotes
+  if (allowedEmotes.length > 0 && !allowedEmotes.includes(record.emote)) {
+    return; // Skip message if emote not allowed
+  }
   // Push received record into our batch
   rawMessagesBatch.push(record);
 
@@ -150,26 +154,67 @@ async function startKafka() {
 const app = express();
 app.use(bodyParser.json());
 
-// GET current settings
-app.get('/settings', (req, res) => {
-  res.json({
-    messageCountThreshold,
-    significantEmoteThreshold,
-    rawTopic: RAW_TOPIC,
-    aggregatedTopic: AGG_TOPIC,
-  });
+
+// -- INTERVAL SETTINGS -- //
+app.get('/settings/interval', (req, res) => {
+  res.json({ messageCountThreshold });
 });
 
-// PUT (or POST) to update settings
-app.put('/settings', (req, res) => {
-  // Example: { emotes: ["❤️", "👍"] }
-  const { emotes } = req.body;
-  if (!Array.isArray(emotes)) {
-    return res.status(400).json({ error: 'Must provide an array of emotes' });
+app.put('/settings/interval', (req, res) => {
+  const { interval } = req.body;
+  if (typeof interval === 'number') {
+    messageCountThreshold = interval;
+    res.json({ success: true, messageCountThreshold });
+  } else {
+    res.status(400).json({ error: 'Invalid interval' });
   }
-  allowedEmotes = emotes;
-  return res.json({ success: true, allowedEmotes });
 });
+
+// -- THRESHOLD SETTINGS -- //
+app.get('/settings/threshold', (req, res) => {
+  res.json({ significantEmoteThreshold });
+});
+app.put('/settings/threshold', (req, res) => {
+  const { threshold } = req.body;
+  if (typeof threshold === 'number') {
+    significantEmoteThreshold = threshold;
+    res.json({ success: true, significantEmoteThreshold });
+  } else {
+    res.status(400).json({ error: 'Invalid threshold' });
+  }
+});
+
+// -- ALLOWED EMOTES SETTINGS -- //
+app.get('/settings/allowed-emotes', (req, res) => {
+  res.json({ allowedEmotes });
+});
+
+app.put('/settings/allowed-emotes', (req, res) => {
+  const { emotes } = req.body;
+  if (Array.isArray(emotes)) {
+    allowedEmotes = emotes;
+    res.json({ success: true, allowedEmotes });
+  } else {
+    res.status(400).json({ error: 'Invalid emotes list' });
+  }
+});
+
+// app.put('/settings', (req, res) => {
+//   const { newThreshold, newSignificance } = req.body;
+
+//   if (newThreshold != null) {
+//     messageCountThreshold = parseInt(newThreshold, 10);
+//   }
+//   if (newSignificance != null) {
+//     significantEmoteThreshold = parseFloat(newSignificance);
+//   }
+
+//   return res.json({
+//     success: true,
+//     messageCountThreshold,
+//     significantEmoteThreshold,
+//   });
+// });
 
 // For convenience, we’ll run on port 3001 in the container
 const PORT = process.env.PORT || 3001;

@@ -1,88 +1,135 @@
-# COMP.CS.510 Advanced Web Development: Back End - Group project work repository
+Group Project Documentation
 
-Hello WebDevelopers!
+Group Name: Karaca
+Member: Fatih Karaca
+Email: fatih.karaca@tuni.fi
 
-This repository is the home for all of your group's code and documentation during this project.  
+Backend Components
 
-## Documentation of the system and group's work
+Server A (server_a)
 
-For the final submission, all group documentation must be provided in a single PDF or MD file in the root directory of this repository. Do not add any documentation into the course_documentation folder, as that can be used by course personnel to add new content without causing merge issues.
+Role:
+server_a acts as a bridge between Kafka and WebSocket clients.
+Its main responsibilities are:
 
-You may use Markdown (.md) or any other documentation method to keep track of documentation during the project, as long as it can be accessed from the repository.
+Consuming messages from a Kafka topic (aggregated-emote-data).
+Broadcasting received messages to all connected WebSocket clients over WebSocket.
+Flow Diagram:
 
-### Required documentation
+Kafka -->|aggregated-emote-data| ServerA
+ServerA -->|WebSocket messages| Clients
+Technologies Used:
 
-The documentation required includes the project plan, architectural description of the system, the technologies used, the progress of the group's work, as well as what the group's members learned during this project. Groups also must document where the components of their system are placed in the repository, and how the course personnel can deploy the group's system on their own computers when testing it.
 
-Groups can of course add any extra documentation they feel is useful, and if course personnel finds the documentation useful and well-written, this extra documentation will affect the points positively.
+Technology	Purpose
+Node.js	Runtime for server A
+kafkajs	Kafka client library
+ws	WebSocket server library
+Configuration:
 
-### Project plan
+Kafka broker: Configurable via process.env.KAFKA_BROKER, defaults to localhost:9092.
+Kafka consumer group: server_a_group.
+Kafka topic subscribed: aggregated-emote-data.
+WebSocket server: Listens on port 3000.
+Code Location:
+./backend/server_a/index.js
 
-The following subsection tells what should be documented under _Project plan_ section.
+Key functionality:
 
-#### Course project group information
+Initializes a Kafka consumer.
+Sets up a WebSocket server.
+Receives messages from Kafka and broadcasts them to connected WebSocket clients.
+Manages active client connections (adding/removing on connect/disconnect).
 
-Start the documentation with identifying information:
-- The name, student number, and TUNI email for each group member
-- Group name
-- GitLab repo URL
+Server B (server_b)
 
-#### Working during the project
+Role:
+server_b is responsible for:
 
-The initial timetable for the research, design and implementation of the architecture
+Consuming raw emote data from the raw-emote-data topic.
+Batching and analyzing incoming messages.
+Publishing significant moments to the aggregated-emote-data topic.
+Exposing a REST API for frontend interaction.
+Workflow:
 
-Which group member(s) will be responsible for what
+Consumes Kafka topic raw-emote-data.
+Accumulates messages into a batch.
+When messageCountThreshold is reached:
+Groups messages by minute (timestamp sliced to minute granularity).
+Calculates emote counts.
+Marks emotes as "significant" if (count / totalEmotes) > significantEmoteThreshold.
+Produces these significant moments to aggregated-emote-data.
+Technologies Used:
 
-How much time each group member promises to group project work per week. Note down each member's promise for committed hours for this project
 
-#### GitLab Issue Boards
+Technology	Purpose
+Node.js	Runtime for server B
+kafkajs	Kafka consumer and producer
+express	REST API server
+body-parser	Middleware for parsing JSON
+Configuration:
 
-**It is recommended that your group uses GitLab’s Issue Board for assigning tasks to members.** Issue Boards offer Kanban-like project management in an easily accessible form.
+Kafka broker: From process.env.KAFKA_BROKER.
+Listening Port: 3001 (inside container).
+Topics:
+Consuming: raw-emote-data
+Producing: aggregated-emote-data
+REST API Endpoints:
 
-In GitLab, you can have easy, lightweight project management by using the Issue Board of your repo, [see GitLab’s Issue Board documentation](https://docs.gitlab.com/ee/user/project/issue_board.html). You can find the Issue Board from GitLab’s left panel menu: go to your group repo’s GitLab frontpage -> Issues -> Board.
 
-A short Youtube video introduction to Issue Board [“Announcing the GitLab Issue Board”](https://www.youtube.com/watch?v=UWsJ8tkHAa8). You should be able to see the basic idea and functioning.
+Endpoint	Method	Description
+/settings/interval	GET/PUT	Get or update the message count threshold
+/settings/threshold	GET/PUT	Get or update the significant emote threshold
+/settings/allowed-emotes	GET/PUT	Get or update the list of allowed emotes
+Testing:
 
-When using the Issue Board, your group should first discuss what lists you would like to use, “To do”, "Research", and “Doing” are the defaults that are offered to be created for a new issue board. Then, whenever your group starts new tasks, or you have an issue (bug, improvement, etc…) with your code, then you should create issues in GitLab for these. Then your group assigns each issue/task to group member(s). The assigned student is responsible for handling the issue, and moving it from that list to next in the Issue Board, until it is in the “Closed”/"Done"/"Revied" list.
+The /settings GET endpoints were tested via Postman and working correctly.
+POST/PUT endpoints are implemented and in progress for final debugging.
+Code Location:
+./backend/server_b/index.js
 
-Your group should decide who and when will create the GitLab issues and assign them to members.
+Frontend (frontend)
 
-### Documentation of the created system
+Role:
+The frontend is a React application built with Vite. It:
 
-The following describes what needs to be documented during the project.
+Displays real-time significant moments received via WebSocket from Server A.
+Allows users to view and update Server B settings through REST API calls.
+Updates the page dynamically without full reloads.
+Technologies Used:
 
-Those groups that use other technologies/architecture than described need to apply these instructions to fit their choices.
 
-#### System architecture
+Technology	Purpose
+React (Vite)	Frontend framework
+WebSocket API	Receiving live emote events
+Fetch API	Communicating with Server B's REST API
+Nginx	Serving the built frontend and proxying API calls
+Docker	Containerization of frontend services
+Key Features:
 
-The focus should be on applying what has been learned in the course about web architecture. Using proper architectural descriptions and UML diagrams would be appropriate, but the groups are welcome to use any reasonable way of describing the system.
+Live updates via WebSocket from ws://localhost:3000.
+Settings are fetched from REST API endpoints at /api/settings/....
+Form inputs allow modifying thresholds and allowed emotes.
+Styled with simple but elegant CSS, using gradient backgrounds and responsive cards.
+Frontend Deployment:
 
-Matters to describe include architectural patterns, components, component's roles, communication within the system and with external components, and others things, that the group finds important when describing the architecture. Describe the system with enough detail, so that a technical person with no prior knowledge of the system would be able to understand it. Use images and diagrams whenever you are able.
+React app is built via Vite.
+The built static files are served through Nginx.
+Nginx is configured to:
+Serve frontend files from /usr/share/nginx/html.
+Proxy /api/ requests to Server B (running at http://server_b:3001 inside Docker).
 
-It is important to evaluate the architecture and compare it to other possible architectures. Elaborate on the strengths and weaknesses of this architecture when compared to its purpose and tasks as described in the assignment document. Consider other architectures that would have been able to fulfill the system's described purpose and tasks. This part is where your group gets to explore architectures that could have been used to produce a system with the same or at least similar functionality. The sky is the limit here, get creative!
+Overall System Diagram
 
-#### Used technologies
+EmoteGen --> [Kafka raw-emote-data topic]
+Server B --> [Kafka aggregated-emote-data topic]
+Server A --> [WebSocket] --> Frontend (React)
+Frontend --> [Fetch API /api/] --> Server B
 
-Description of the technologies used in the system (Node, Kafka, WebSocket, ...), how the technologies were used in the project, and the group's view of the technologies from your use. Could other/better alternatives have been used? Or is there an alternative that would have been more interesting to the group?
+Final Testing Status
 
-#### How the produced system can be tested
-
-Here group describes how course personnel can test their system. A complete HOWTO on running your system, with easily copy-pastable examples.
-
-### Learnign during the project
-
-A group learning diary, where group members note down the learning during the project. Short descriptions of who, what, and when are sufficient. Could be a link to GitLab Issue, that has more information.
-
-This information is interesting to the course personnel, too. We get to see if the project enabled learning as designed.
-
-## Coding during the project
-
-Code for each component _must_ be placed in its own directories to maintain a healthy repository. For the groups' convenience sub-directories for _server_a_, _frontend_, and _server_b_ have been created in the repository. Groups can choose to use this directory structure, or groups can remove/modify it to their needs, as long as the code for each component is placed in its own directory.
-
-The directories have files like _Dockerfiles_ that groups can use as the basis of their work, but as with the directory structure, the groups are free to do with them as they will. Groups should however read through the files, even if they choose to remove them, as they contain help and comments.
-
-Docker Compose file _'docker-compose.yml'_ must be placed in the root directory of the repository where it is now.
-
-Commenting your code is important in places where the code might not be immediately obvious. Comments should be detailed enough that people outside your group can understand the code with the help of the comments. _But ultimately, I feels it's far superior to write self-documenting code in the first place. If you have the following line `user.setFirstName('John') //Sets the users first name to John`, I don't believe the comment adds to it's readability in any way._
-
-The `docker-compose.yml` -file and other files have comments by the course personnel. Groups can remove these comments if they wish to do so.
+✅ Kafka communication tested.
+✅ WebSocket communication tested.
+✅ REST API /settings GET tested.
+✅ Frontend WebSocket live updates working.
+🛠 Final POST/PUT API testing in progress.
